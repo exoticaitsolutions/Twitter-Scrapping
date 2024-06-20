@@ -2,7 +2,10 @@
 <module version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/ven1v" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/venv1" />
+      <excludeFolder url="file://$MODULE_DIR$/venv12" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.10 (Twitter-Scrapping)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -24,7 +24,7 @@ def get_mailinator_code(email):
     options.add_argument("--headless")
     driver.maximize_window()
     driver.get(url)
-    sleep(10)  # Wait for the page to load
+    random_sleep()
 
     try:
         sleep(3)
@@ -33,13 +33,13 @@ def get_mailinator_code(email):
             By.XPATH,
             "/html/body/div/main/div[2]/div[3]/div/div[4]/div/div/table/tbody/tr/td[3]",
         ).click()
-        sleep(7)
+        random_sleep()
 
         # Get the element containing the code
         element = driver.find_element(
             By.XPATH, "//div[@class='fz-20 ff-futura-demi gray-color ng-binding']"
         ).text
-        sleep(3)
+        random_sleep()
 
         # Extract the code
         last = element.split()[-1]
@@ -69,78 +69,78 @@ USER_CREDENTIALS = [
         "email": "sunnyexoticait@gmail.com",
         "password": "Sunny@123",
     },
-    {
-        "full name": "MosleySeri72159",
-        "username": "MosleySeri72159",
-        "email": "xohik@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "Melvin Barber",
-        "username": "MelvinBarb10693",
-        "email": "zavow@mailinator.com",
-        "password": "EF7T6TJwZnE9fakzJLiRfRFDNJuL",
-    },
-    {
-        "full name": "Mariam Park",
-        "username": "MariamPark98427",
-        "email": "gipo@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "demetria63800",
-        "username": "demetria63800",
-        "email": "pifoga@mailinator.com",
-        "password": "3TVNhFa2wJfhYq0",
-    },
-    {
-        "full name": "JoelClay287888",
-        "username": "JoelClay287888",
-        "email": "gery@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "knight_may39057",
-        "username": "knight_may39057",
-        "email": "paro@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "ShaeleighT54515",
-        "username": "ShaeleighT54515",
-        "email": "kazoruzog@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "rocha_domi30885",
-        "username": "rocha_domi30885",
-        "email": "xawi@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "jemima_rui69057",
-        "username": "jemima_rui69057",
-        "email": "noxy@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "ChristianF88294",
-        "username": "ChristianF88294",
-        "email": "nutihidyf@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "ConstanceF3888",
-        "username": "ConstanceF3888",
-        "email": "dasavoxoga@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "WeissJorde72850",
-        "username": "WeissJorde72850",
-        "email": "racibezasa@mailinator.com",
-        "password": "asdf123@",
-    },
+    # {
+    #     "full name": "MosleySeri72159",
+    #     "username": "MosleySeri72159",
+    #     "email": "xohik@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "Melvin Barber",
+    #     "username": "MelvinBarb10693",
+    #     "email": "zavow@mailinator.com",
+    #     "password": "EF7T6TJwZnE9fakzJLiRfRFDNJuL",
+    # },
+    # {
+    #     "full name": "Mariam Park",
+    #     "username": "MariamPark98427",
+    #     "email": "gipo@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "demetria63800",
+    #     "username": "demetria63800",
+    #     "email": "pifoga@mailinator.com",
+    #     "password": "3TVNhFa2wJfhYq0",
+    # },
+    # {
+    #     "full name": "JoelClay287888",
+    #     "username": "JoelClay287888",
+    #     "email": "gery@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "knight_may39057",
+    #     "username": "knight_may39057",
+    #     "email": "paro@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "ShaeleighT54515",
+    #     "username": "ShaeleighT54515",
+    #     "email": "kazoruzog@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "rocha_domi30885",
+    #     "username": "rocha_domi30885",
+    #     "email": "xawi@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "jemima_rui69057",
+    #     "username": "jemima_rui69057",
+    #     "email": "noxy@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "ChristianF88294",
+    #     "username": "ChristianF88294",
+    #     "email": "nutihidyf@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "ConstanceF3888",
+    #     "username": "ConstanceF3888",
+    #     "email": "dasavoxoga@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "WeissJorde72850",
+    #     "username": "WeissJorde72850",
+    #     "email": "racibezasa@mailinator.com",
+    #     "password": "asdf123@",
+    # },
 ]
 
 

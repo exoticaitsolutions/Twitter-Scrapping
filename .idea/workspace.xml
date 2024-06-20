@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fd5255fe-a285-4bfe-a598-6fb077ec47a2" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/Twitter-Scrapping.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Twitter-Scrapping.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/twitter_scraper/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/twitter_scraper/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/twitter_scraper/web_driver.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/web_driver.py" afterDir="false" />
-    </list>
+    <list default="true" id="fd5255fe-a285-4bfe-a598-6fb077ec47a2" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -53,7 +47,7 @@
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "devbheem",
-    "last_opened_file_path": "/home/bheem/Desktop/Python Projects/Django/DRF API Projects/Scrapping/Twitter-Scrapping",
+    "last_opened_file_path": "/home/bheem/Desktop/Python Projects/Django/DRF API Projects/Scrapping/Twitter-Scrapping/venv/bin/activate",
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
@@ -61,6 +55,75 @@
     <force-push-targets>
       <force-push-target remote-path="origin" branch="devbheem" />
     </force-push-targets>
+  </component>
+  <component name="RunManager">
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="Tox" factoryName="Tox">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="docs" factoryName="Docutils task">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <option name="docutils_input_file" value="" />
+      <option name="docutils_output_file" value="" />
+      <option name="docutils_params" value="" />
+      <option name="docutils_task" value="" />
+      <option name="docutils_open_in_browser" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="docs" factoryName="Sphinx task">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <option name="docutils_input_file" value="" />
+      <option name="docutils_output_file" value="" />
+      <option name="docutils_params" value="" />
+      <option name="docutils_task" value="" />
+      <option name="docutils_open_in_browser" value="false" />
+      <method v="2" />
+    </configuration>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>

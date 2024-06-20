@@ -86,7 +86,7 @@ class InitializeDriver:
         options = self._setup_options()
         chromedriver_path = ChromeDriverManager().install()
         service = Service(chromedriver_path)
-        driver = uc.Chrome(service=service, options=options)
+        driver = wiredriver.Chrome(service=service, options=options)
         print("Free proxy is Working")
         return driver
 

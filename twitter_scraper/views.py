@@ -131,9 +131,8 @@ def scrape_profile_tweets(profile_name=None, retry_count=0, full_url=None):
                 return save_data_and_return(data, profile_name)
 
         driver.execute_script("window.scrollBy(0, 200);")
-        sleep(5)
+        random_sleep()
         scrap_data()
-
     success, message = twitter_login_auth(driver)
     if not success:
         return message_json_response(
@@ -180,7 +179,7 @@ def scrape_profile_tweets(profile_name=None, retry_count=0, full_url=None):
         print("click on people profile !!!!!!!!!!!!!!!!!!")
         random_sleep()
         scrap_data()
-        sleep(2)
+        random_sleep()
         driver.quit()
         return save_data_and_return(data, profile_name)
 
