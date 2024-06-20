@@ -335,12 +335,6 @@ def set_cache(key, value, timeout=None):
 
 
 def get_cache(key, default=None):
-    """
-    Get a value from the cache.
-    :param key: Cache key
-    :param default: Default value to return if the key does not exist
-    :return: Cached value or default if the key does not exist
-    """
     return cache.get(key, default)
 
 
