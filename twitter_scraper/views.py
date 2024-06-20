@@ -48,30 +48,74 @@ def print_current_thread():
     print("---------- Current Thread:", current_thread.name)
 
 
-def retry_exception(
-    recalling_method_name, any_generic_parameter, retry_count=0, exception_name=None
-):
-    # If tweet elements are not found, check if retry attempts are exhausted
+def retry_exception(recalling_method_name, any_generic_parameter, retry_count=0, exception_name=None):
+    """
+    Retry a method up to MAX_EXCEPTION_RETRIES times when an exception occurs,
+    with a random delay between retries.
+
+    Args:
+    - recalling_method_name: The method to retry.
+    - any_generic_parameter: Any parameter needed by the method.
+    - retry_count: Current retry attempt count (default is 0).
+    - exception_name: Name or type of the exception being handled (optional).
+
+    Returns:
+    - Tuple (False, "Element not found") if retry attempts are exhausted,
+      indicating the method failed after retries.
+    - Result of recalling_method_name if successful within retry attempts.
+
+    """
+    # Check if retry attempts are exhausted
     if retry_count < MAX_EXCEPTION_RETRIES:
-        retry_count = retry_count + 1
+        retry_count += 1
         # Retry the function after a delay
-        print(
-            f"******* Retrying attempt after ',{exception_name} in {recalling_method_name},' "
-            f", Attempt #:' {retry_count}"
-        )
-        random_sleep()  # Add a delay before retrying
+        print(f"Retrying '{exception_name}' in '{recalling_method_name}', Attempt #{retry_count}")
+        random_sleep()  # Add a random delay before retrying
         return recalling_method_name(any_generic_parameter, retry_count)
     else:
-        # Return a JSON response with an error message if retry attempts are exhausted
-        print(
-            f"!!!!!!!!!!!!! All the retry attempts exhausted. Throwing error now........"
-        )
+        # Return an indication that retry attempts are exhausted
+        print("All retry attempts exhausted. Throwing error now...")
         return False, "Element not found"
 
 
 def scrape_profile_tweets(profile_name=None, retry_count=0, full_url=None):
-    print_current_thread()
+    """
+       Scrapes tweets from a Twitter profile.
 
+       Args:
+       - profile_name (str): The Twitter profile name to scrape tweets from.
+       - retry_count (int, optional): Current retry attempt count. Default is 0.
+       - full_url (str, optional): Full URL associated with the profile. Default is None.
+
+       Returns:
+       - Tuple (bool, list or str):
+           - If successful, returns (True, scraped_data).
+             scraped_data is a list of dictionaries containing scraped tweet information:
+             {
+                 "Name": Name of the profile being scraped,
+                 "UserTag": Twitter handle of the user,
+                 "Timestamp": Timestamp of the tweet,
+                 "TweetContent": Text content of the tweet,
+                 "Reply": Number of replies to the tweet,
+                 "Retweet": Number of retweets of the tweet,
+                 "Likes": Number of likes on the tweet
+             }
+           - If unsuccessful, returns (False, error_message) where error_message
+           is a string describing the error.
+       Raises:
+       - None. Exceptions are caught internally and handled with retries.
+
+       Notes:
+       - This function initializes a web driver, performs Twitter authentication,
+         searches for a Twitter profile, and scrapes tweets from the profile page.
+       - It uses Selenium WebDriver for web scraping and interacts with elements
+         based on their XPATH on the Twitter web interface.
+       - Retries are attempted for certain exceptions (NoSuchElementException,
+         StaleElementReferenceException) up to MAX_EXCEPTION_RETRIES times.
+       - Ensure proper setup of WebDriver and environment variables (like PAIDPROXY in settings)
+         to match the environment requirements.
+       """
+    print_current_thread()
     print("web driver initializing")
     driver = (
         driver_initializer.initialize_paid_proxy()
@@ -199,6 +243,16 @@ def scrape_profile_tweets(profile_name=None, retry_count=0, full_url=None):
 
 @api_view(["GET"])
 def get_tweeted_via_profile_name(request):
+    """
+       API endpoint to retrieve and scrape tweets from a Twitter profile based on profile_name.
+       Uses multi-threading to handle the scraping process asynchronously.
+
+       Parameters:
+       - request (HttpRequest): Django request object containing query parameters.
+
+       Returns:
+       - JSON response with scraped tweet data or error message if profile_name is missing or scraping fails.
+       """
     profile_name = request.query_params.get("Profile_name")
     full_url = request.build_absolute_uri()
     if not profile_name:
@@ -216,6 +270,17 @@ def get_tweeted_via_profile_name(request):
 
 
 def scrape_hashtag_tweets(hashtags, retry_count, full_url):
+    """
+       Scrapes tweets based on hashtags using a web driver initialized with proxy settings.
+
+       Parameters:
+       - hashtags (str): Hashtags to search for and scrape tweets.
+       - retry_count (int): Number of retry attempts in case of exceptions.
+       - full_url (str): Full URL of the current request for caching purposes.
+
+       Returns:
+       - JSON response with scraped tweet data or error message if scraping fails.
+       """
     print_current_thread()
     print("web driver initializing")
     driver = (
@@ -304,6 +369,15 @@ def scrape_hashtag_tweets(hashtags, retry_count, full_url):
 
 @api_view(["GET"])
 def fetch_tweets_by_hash_tag(request):
+    """
+       Fetches tweets based on hashtags provided in the query parameters.
+
+       Parameters:
+       - request (Request): Django request object containing query parameters.
+
+       Returns:
+       - JSON response with scraped tweet data or error message if scraping fails.
+       """
     hashtags = request.query_params.get("hashtags")
     full_url = request.build_absolute_uri()
     if not hashtags:
@@ -321,6 +395,28 @@ def fetch_tweets_by_hash_tag(request):
 
 
 def scrape_trending_hashtags(trending, retry_count=0, full_url=None):
+    """
+      Scrapes trending hashtags from Twitter's explore section and caches the results.
+
+      Args:
+          trending (str): The trending topic or hashtag to scrape.
+          retry_count (int, optional): Number of retry attempts in case of exceptions. Defaults to 0.
+          full_url (str, optional): The full URL of the request for caching purposes. Defaults to None.
+
+      Returns:
+          tuple: A tuple indicating success status and JSON response.
+                 - True if scraping and caching were successful, False otherwise.
+                 - JSON response containing scraped trending topics.
+
+      Raises:
+          Exception: If scraping encounters unexpected errors, retries using `retry_exception`.
+
+      Notes:
+          This function initializes a web driver, navigates to Twitter's explore and trending sections,
+          scrolls through the page to load all trending topics, extracts relevant information,
+          and caches the scraped data using `set_cache`.
+
+      """
     print_current_thread()
     print("web driver initializing")
     driver = (
@@ -403,6 +499,24 @@ def scrape_trending_hashtags(trending, retry_count=0, full_url=None):
 
 @api_view(["GET"])
 def get_trending_tweets(request):
+    """
+        Fetches and returns trending tweets from Twitter, either from cache or by scraping.
+        Args:
+            request (Request): Django HTTP request object containing query parameters.
+        Returns:
+            Response: JSON response containing trending tweets data fetched or scraped.
+        Notes:
+            This function checks if trending tweets data is available in cache using `get_cache`.
+            If cached data exists, it returns the cached response using `save_data_and_return`.
+            If no cached data is found, it initiates scraping of trending tweets using
+            `scrape_trending_hashtags` in a ThreadPoolExecutor with max workers set to 5.
+            It waits for the scraping to complete and handles the result:
+            - If scraping is successful (`success=True`), it returns the scraped data using
+              `save_data_and_return`.
+            - If scraping fails (`success=False`), it returns an error response using
+              `message_json_response`.
+
+        """
     trending = "trending"
     # cached_response = cache.get(trending)
     full_url = request.build_absolute_uri()
@@ -418,6 +532,44 @@ def get_trending_tweets(request):
 
 
 def scrape_tweets_by_id(request, retry_count=0, full_url=None):
+    """
+       Scrapes Twitter tweets by their IDs and returns relevant information.
+
+       Args:
+           request (Request): Django HTTP request object containing query parameters:
+               - user_name (str): The Twitter username associated with the tweets.
+               - post_ids (str): Comma-separated string of tweet IDs to scrape.
+
+           retry_count (int, optional): Number of retries attempted if scraping fails. Defaults to 0.
+           full_url (str, optional): The full URL requested. Used for caching purposes. Defaults to None.
+
+       Returns:
+           tuple: A tuple containing two elements:
+               - success (bool): True if scraping was successful, False otherwise.
+               - data (list): List of dictionaries containing scraped tweet information.
+                 Each dictionary includes the following keys:
+                   - "username" (str): The Twitter username.
+                   - "TweetContent" (str): The text content of the tweet.
+                   - "views_count" (str): The count of views on the tweet.
+                   - "timestamp" (str): The timestamp when the tweet was posted.
+                   - "content_image" (str): The URL of any image attached to the tweet.
+                   - "reply_count" (str): The count of replies to the tweet.
+                   - "like_count" (str): The count of likes on the tweet.
+                   - "repost_count" (str): The count of reposts (retweets) of the tweet.
+                   - "bookmark_count" (str): The count of times the tweet was bookmarked.
+
+       Notes:
+           This function scrapes multiple tweets from Twitter based on their IDs.
+           It initializes a web driver (paid or free proxy based on settings) and attempts
+           to authenticate with Twitter using `twitter_login_auth`.
+           For each tweet ID provided in the `post_ids` parameter, it constructs the tweet URL,
+           navigates to the tweet page, and extracts relevant information such as tweet text,
+           image URL (if any), engagement metrics, timestamp, and views count.
+           The scraped data is stored in the `data` list and eventually cached using `set_cache`.
+           If scraping encounters `NoSuchElementException` or `StaleElementReferenceException`,
+           the function retries based on `retry_count`.
+           Upon completion or error, the web driver is closed to free resources.
+       """
     print_current_thread()
     print("web driver initializing")
     driver = (
@@ -521,6 +673,33 @@ def scrape_tweets_by_id(request, retry_count=0, full_url=None):
 
 @api_view(["GET"])
 def get_tweets_by_id(request):
+    """
+       Retrieves and caches Twitter tweets by their IDs associated with a specific user.
+
+       Args:
+           request (Request): Django HTTP request object containing query parameters:
+               - user_name (str): The Twitter username associated with the tweets.
+               - post_ids (str): Comma-separated string of tweet IDs to retrieve.
+
+       Returns:
+           JsonResponse: JSON response containing the retrieved tweet data.
+
+       Notes:
+           This function checks if the requested tweets for a specific user and tweet IDs
+           are already cached. If cached data exists, it returns the cached response.
+           If not cached, it spawns a background task using ThreadPoolExecutor to
+           scrape the tweets using `scrape_tweets_by_id` function.
+
+           The function ensures both `user_name` and `post_ids` query parameters are provided.
+           Upon successful retrieval, the scraped data is cached for future requests using `set_cache`.
+
+           If scraping encounters errors, it retries based on exception handling mechanisms in
+           `scrape_tweets_by_id`. If retries fail, it returns an error response indicating the issue.
+
+       Raises:
+           HTTP_400_BAD_REQUEST: If either `user_name` or `post_ids` parameters are missing in the request.
+
+       """
     user_name = request.query_params.get("user_name")
     full_url = request.build_absolute_uri()
     post_ids_str = request.query_params.get("post_ids")
@@ -543,6 +722,33 @@ def get_tweets_by_id(request):
 
 
 def scrap_get_comments_for_tweet(request, retry_count=0, full_url=None):
+    """
+       Scrapes comments from Twitter tweets specified by user_name and post_ids.
+
+       Args:
+           request (Request): Django HTTP request object containing query parameters:
+               - user_name (str): The Twitter username associated with the tweets.
+               - post_ids (str): Comma-separated string of tweet IDs to retrieve comments from.
+           retry_count (int, optional): Number of retries attempted in case of failure. Defaults to 0.
+           full_url (str, optional): Full URL of the request, used for caching purposes. Defaults to None.
+
+       Returns:
+           tuple: A tuple indicating success or failure of the scraping operation and a JSON response.
+               - If successful, returns (True, json_response).
+               - If unsuccessful, returns (False, error_message).
+
+       Notes:
+           This function initializes a web driver and performs Twitter authentication.
+           It retrieves tweet comments by visiting each tweet URL constructed from user_name and post_ids.
+           Comments are scraped using a combination of scrolling the page and waiting for elements to load.
+           Scraped comments are formatted and returned in a JSON response under 'comments' key.
+
+           If scraping encounters errors such as NoSuchElementException or StaleElementReferenceException,
+           it retries the operation based on the retry_count. If retries fail, it returns an error message.
+
+           The function ensures the web driver is properly closed after scraping, even in case of errors.
+
+       """
     print_current_thread()
     print("web driver initializing")
     driver = (
@@ -644,6 +850,29 @@ def scrap_get_comments_for_tweet(request, retry_count=0, full_url=None):
 
 @api_view(["GET"])
 def get_comments_for_tweets(request):
+    """
+       Retrieves comments for tweets associated with a given user_name and post_ids.
+
+       Args:
+           request (Request): Django HTTP request object containing query parameters:
+               - user_name (str): The Twitter username associated with the tweets.
+               - post_ids (str): Comma-separated string of tweet IDs to retrieve comments from.
+           full_url (str): Full URL of the request, used for caching purposes.
+
+       Returns:
+           Response: JSON response containing retrieved comments for tweets.
+               - If successful, returns comments data with HTTP 200 OK status.
+               - If user_name or post_ids are missing, returns HTTP 400 BAD REQUEST.
+               - If an error occurs during scraping or processing, returns HTTP 400 BAD REQUEST with error message.
+
+       Notes:
+           This function initiates scraping of comments from Twitter tweets based on provided user_name and post_ids.
+           It checks if the requested data is cached; if not, it initiates a background thread for scraping using
+           scrap_get_comments_for_tweet function.
+           Upon successful scraping, the retrieved comments are formatted and cached using set_cache for future requests.
+           Error handling includes cases of missing user_name or post_ids, as well as exceptions during scraping.
+
+       """
     user_name = request.query_params.get("user_name")
     post_ids_str = request.query_params.get("post_ids")
     full_url = request.build_absolute_uri()
