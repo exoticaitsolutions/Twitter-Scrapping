@@ -5,3 +5,6 @@
 /json_Response
 
 /twitter_scraper/migrations
+
+
+.env*
