@@ -1,5 +1,7 @@
 .env
 .idea
 
-venv
-/js
+/venv1
+/json_Response
+
+/twitter_scraper/migrations
