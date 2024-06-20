@@ -1,16 +1,17 @@
-import os
 import json
+import os
 import random
 from time import sleep
+from django.utils import timezone
+from rest_framework import status
 from typing import Optional, Dict
-
+import undetected_chromedriver as uc
+from django.core.cache import cache
 from django.http import JsonResponse
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import NoSuchElementException
-import undetected_chromedriver as uc
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
 
 
 def get_mailinator_code(email):
@@ -23,22 +24,22 @@ def get_mailinator_code(email):
     options.add_argument("--headless")
     driver.maximize_window()
     driver.get(url)
-    sleep(10)  # Wait for the page to load
+    random_sleep()
 
     try:
-        sleep(3)
+        random_sleep()
         # Click the email item
-        outer_click = driver.find_element(
+        driver.find_element(
             By.XPATH,
             "/html/body/div/main/div[2]/div[3]/div/div[4]/div/div/table/tbody/tr/td[3]",
         ).click()
-        sleep(7)
+        random_sleep()
 
         # Get the element containing the code
         element = driver.find_element(
             By.XPATH, "//div[@class='fz-20 ff-futura-demi gray-color ng-binding']"
         ).text
-        sleep(3)
+        random_sleep()
 
         # Extract the code
         last = element.split()[-1]
@@ -63,77 +64,83 @@ def get_mailinator_code(email):
 
 USER_CREDENTIALS = [
     {
-        "full name": "MosleySeri72159",
-        "username": "MosleySeri72159",
-        "email": "xohik@mailinator.com",
-        "password": "asdf123@",
+        "full name": "Sunny",
+        "username": "Sunny634164",
+        "email": "sunnyexoticait@gmail.com",
+        "password": "Sunny@123",
     },
-    {
-        "full name": "Melvin Barber",
-        "username": "MelvinBarb10693",
-        "email": "zavow@mailinator.com",
-        "password": "EF7T6TJwZnE9fakzJLiRfRFDNJuL",
-    },
-    {
-        "full name": "Mariam Park",
-        "username": "MariamPark98427",
-        "email": "gipo@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "demetria63800",
-        "username": "demetria63800",
-        "email": "pifoga@mailinator.com",
-        "password": "3TVNhFa2wJfhYq0",
-    },
-    {
-        "full name": "JoelClay287888",
-        "username": "JoelClay287888",
-        "email": "gery@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "knight_may39057",
-        "username": "knight_may39057",
-        "email": "paro@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "ShaeleighT54515",
-        "username": "ShaeleighT54515",
-        "email": "kazoruzog@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "rocha_domi30885",
-        "username": "rocha_domi30885",
-        "email": "xawi@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "jemima_rui69057",
-        "username": "jemima_rui69057",
-        "email": "noxy@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "ChristianF88294",
-        "username": "ChristianF88294",
-        "email": "nutihidyf@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "ConstanceF3888",
-        "username": "ConstanceF3888",
-        "email": "dasavoxoga@mailinator.com",
-        "password": "asdf123@",
-    },
-    {
-        "full name": "WeissJorde72850",
-        "username": "WeissJorde72850",
-        "email": "racibezasa@mailinator.com",
-        "password": "asdf123@",
-    },
+    # {
+    #     "full name": "MosleySeri72159",
+    #     "username": "MosleySeri72159",
+    #     "email": "xohik@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "Melvin Barber",
+    #     "username": "MelvinBarb10693",
+    #     "email": "zavow@mailinator.com",
+    #     "password": "EF7T6TJwZnE9fakzJLiRfRFDNJuL",
+    # },
+    # {
+    #     "full name": "Mariam Park",
+    #     "username": "MariamPark98427",
+    #     "email": "gipo@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "demetria63800",
+    #     "username": "demetria63800",
+    #     "email": "pifoga@mailinator.com",
+    #     "password": "3TVNhFa2wJfhYq0",
+    # },
+    # {
+    #     "full name": "JoelClay287888",
+    #     "username": "JoelClay287888",
+    #     "email": "gery@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "knight_may39057",
+    #     "username": "knight_may39057",
+    #     "email": "paro@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "ShaeleighT54515",
+    #     "username": "ShaeleighT54515",
+    #     "email": "kazoruzog@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "rocha_domi30885",
+    #     "username": "rocha_domi30885",
+    #     "email": "xawi@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "jemima_rui69057",
+    #     "username": "jemima_rui69057",
+    #     "email": "noxy@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "ChristianF88294",
+    #     "username": "ChristianF88294",
+    #     "email": "nutihidyf@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "ConstanceF3888",
+    #     "username": "ConstanceF3888",
+    #     "email": "dasavoxoga@mailinator.com",
+    #     "password": "asdf123@",
+    # },
+    # {
+    #     "full name": "WeissJorde72850",
+    #     "username": "WeissJorde72850",
+    #     "email": "racibezasa@mailinator.com",
+    #     "password": "asdf123@",
+    # },
 ]
 
 
@@ -169,11 +176,6 @@ def type_slowly(element, text, delay=0.1):
 
     Returns:
         None
-
-    Example:
-        Assuming `element` is a Selenium WebElement representing a text input field:
-        >>> type_slowly(element, "Hello, world!", delay=0.05)
-        # This would type "Hello, world!" into the text input field, with a delay of 0.05 seconds between each character.
     """
     for char in text:
         element.send_keys(char)
@@ -199,7 +201,7 @@ def twitter_login_auth(driver):
     email = credentials["email"]
     print("email : ", email)
     driver.get("https://twitter.com/i/flow/login")
-    sleep(10)
+    random_sleep()
     try:
         username = driver.find_element(By.XPATH, "//input[@name='text']")
         actions = ActionChains(driver)
@@ -213,7 +215,7 @@ def twitter_login_auth(driver):
         next_button = driver.find_element(By.XPATH, "//span[contains(text(),'Next')]")
         actions.move_to_element(next_button).click().perform()
         print("Next button element found and clicked successfully.")
-        sleep(10)
+        random_sleep()
     except NoSuchElementException:
         return False, "Next button element not found"
 
@@ -223,6 +225,7 @@ def twitter_login_auth(driver):
         actions.move_to_element(password).click().perform()
         type_slowly(password, password_value)
         print("Password element found and value sent successfully.")
+        random_sleep()
     except NoSuchElementException:
         return False, "Password element not found"
 
@@ -237,11 +240,11 @@ def twitter_login_auth(driver):
         print("Code input box found for authentication")
         # Get verification code from Mailinator
         code = get_mailinator_code(email)
-        code_input_box.send_keys(code) # Enter the verification code
+        code_input_box.send_keys(code)  # Enter the verification code
         random_sleep()
         print("confirmation code writen")
         # Click the next button to proceed with authentication
-        next_button_click = driver.find_element(
+        driver.find_element(
             By.XPATH, "//div[@class='css-175oi2r r-b9tw7p']//button"
         ).click()
         random_sleep()
@@ -249,9 +252,9 @@ def twitter_login_auth(driver):
         # If code input box is not found, handle the scenario where email input box is displayed for authentication
         email_input_box = driver.find_element(By.XPATH, "//input[@inputmode='email']")
         print("Email input box found for authentication")
-        email_input_box.send_keys(email)# Enter the email address
+        email_input_box.send_keys(email)  # Enter the email address
         random_sleep()
-        next_button_click = driver.find_element(
+        driver.find_element(
             By.XPATH, "//div[@class='css-175oi2r r-b9tw7p']//button"
         ).click()
         random_sleep()
@@ -306,3 +309,37 @@ def save_data_in_directory(folder_name, file_name, json_data: dict):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, ensure_ascii=False, indent=4)
     return True
+
+
+def tweet_content_exists(tweets, tweet_content):
+    return any(tweet.get("TweetContent") == tweet_content for tweet in tweets)
+
+
+def set_cache(key, value, timeout=None):
+    """
+    Set a value in the cache.
+    :param timeout:
+    :param key: Cache key
+    :param value: Value to cache    :param timeout:  timeout in seconds. Defaults to the default timeout if None.
+    """
+    print(
+        "Setting the key = ",
+        key,
+        " and value = ",
+        value,
+        " for timeout = ",
+        timeout,
+        " in Redis cache.",
+    )
+    cache.set(key, value, timeout)
+
+
+def get_cache(key, default=None):
+    return cache.get(key, default)
+
+
+def save_data_and_return(data, data_append):
+    save_data_in_directory(f"json_Response/{timezone.now().date()}/", data_append, data)
+    return message_json_response(
+        status.HTTP_200_OK, "success", "Tweets retrieved successfully", data=data
+    )

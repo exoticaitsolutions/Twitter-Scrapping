@@ -34,7 +34,7 @@ class InitializeDriver:
         options = webdriver.ChromeOptions()
         # Uncomment this line if you want to run in headless mode
         options.add_argument("--headless")
-        # Randomize window size
+        # # Randomize window size
         width = random.randint(800, 1920)
         height = random.randint(600, 1080)
         window_size = f"{width},{height}"

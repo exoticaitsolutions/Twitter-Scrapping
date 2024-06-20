@@ -2,49 +2,49 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
+# Cloudflare configuration....
+import requests
+from django.conf import settings
+from django.http import JsonResponse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 from rest_framework import status
 from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.http import JsonResponse
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
 )
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from .utils import (
     twitter_login_auth,
     message_json_response,
-    save_data_in_directory,
     random_sleep,
+    tweet_content_exists,
+    set_cache,
+    get_cache,
+    save_data_and_return,
 )
 from .web_driver import InitializeDriver
-from django.conf import settings
 
-def print_current_thread():
-    """
-    Print the name of the current thread.
-
-    This function retrieves the current thread using threading.current_thread()
-    and prints its name.
-
-    Example:
-        print_current_thread()
-
-    Output:
-        ---------- Current Thread: MainThread
-    """
-    current_thread = threading.current_thread()
-    print("---------- Current Thread:", current_thread.name)
-
+CLOUDFLARE_WORKER_URL = "https://<your-cloudflare-worker-url>"
+##################################################################
 
 MAX_THREAD_COUNT = 5
 MAX_EXCEPTION_RETRIES = 3
-NUMBER_OF_POSTS = 3
+NUMBER_OF_POSTS = 2
+CACHE_TIMEOUT = 60 * 15
+
+driver_initializer = InitializeDriver()
+
+
+def print_current_thread():
+    current_thread = threading.current_thread()
+    print("---------- Current Thread:", current_thread.name)
 
 
 def retry_exception(
@@ -55,52 +55,58 @@ def retry_exception(
         retry_count = retry_count + 1
         # Retry the function after a delay
         print(
-            f"******* Retrying attempt after {exception_name} in {recalling_method_name}, Attempt #: {retry_count}"
+            f"******* Retrying attempt after ',{exception_name} in {recalling_method_name},' "
+            f", Attempt #:' {retry_count}"
         )
         random_sleep()  # Add a delay before retrying
         return recalling_method_name(any_generic_parameter, retry_count)
     else:
+        # Return a JSON response with an error message if retry attempts are exhausted
         print(
             f"!!!!!!!!!!!!! All the retry attempts exhausted. Throwing error now........"
         )
-        return message_json_response(
-            status.HTTP_404_NOT_FOUND, "error", "Element not found"
-        )
+        return False, "Element not found"
 
 
-def scrape_profile_tweets(profile_name=None, retry_count=0):
+def scrape_profile_tweets(profile_name=None, retry_count=0, full_url=None):
     """
-    Scrapes the latest tweets from a specified Twitter profile.
+    Scrapes tweets from the profile page of the specified profile name on Twitter.
 
     Args:
-        profile_name (str): The Twitter handle of the profile to scrape tweets from.
-        retry_count (int): The number of retries in case of errors during scraping.
+        profile_name (str): The Twitter profile name whose tweets are to be scraped.
+        retry_count (int): Number of retry attempts if scraping fails initially (default is 0).
+        full_url (str): The full URL of the current request, used for caching purposes.
 
     Returns:
-        dict: A JSON response containing the status, message, and scraped tweet data if successful.
-        str: Error message if the scraping fails.
+        bool or tuple: Returns a tuple containing a boolean indicating success (True) or failure (False),
+                      and either a JSON response with scraped data or an error message.
+
+    Notes:
+        This function initializes a web driver, performs Twitter authentication,
+        searches for the specified profile, scrolls through tweets, and extracts relevant data such as
+        tweet content, timestamps, user tags, replies, retweets, and likes.
 
     Raises:
-        NoSuchElementException: If an element is not found on the page.
-        StaleElementReferenceException: If an element is no longer attached to the DOM.
+        NoSuchElementException: If an expected element is not found on the Twitter page.
+        StaleElementReferenceException: If a referenced element is no longer present in the DOM.
+
     """
+    print_current_thread()
 
-    def tweet_content_exists(tweets, tweet_content):
-        return any(tweet.get("TweetContent") == tweet_content for tweet in tweets)
-
-    def save_data_and_return(data):
-        save_data_in_directory(
-            f"Json_Response/{timezone.now().date()}/", profile_name, data
-        )
-        return message_json_response(
-            status.HTTP_200_OK, "success", "Tweets retrieved successfully", data=data
-        )
+    print("web driver initializing")
+    driver = (
+        driver_initializer.initialize_paid_proxy()
+        if settings.PAIDPROXY
+        else driver_initializer.initialize_free_proxy()
+    )
+    data = []
 
     def scrap_data():
-        nonlocal data
+        nonlocal data  # Assuming data is defined in an outer scope
         articles = driver.find_elements(
             By.XPATH, "//div[@class='css-175oi2r' and @data-testid='cellInnerDiv']"
         )
+
         for article in articles:
             user_tag = article.find_element(
                 By.XPATH,
@@ -108,8 +114,6 @@ def scrape_profile_tweets(profile_name=None, retry_count=0):
             ).text
 
             parts = user_tag.split("\n")
-
-            # Extract the username part
             username_with_at_symbol = parts[-1]
 
             timestamp = article.find_element(By.XPATH, "//time").get_attribute(
@@ -138,128 +142,133 @@ def scrape_profile_tweets(profile_name=None, retry_count=0):
                         "Likes": likes,
                     }
                 )
+
                 print("data : ", data)
                 print("posts scrap : ", len(data))
-        if len(data) >= NUMBER_OF_POSTS:
-            print(f"{NUMBER_OF_POSTS} posts scrapp sucessfully")
-            return save_data_and_return(data)
+
+            if len(data) >= NUMBER_OF_POSTS:
+                print(f"{NUMBER_OF_POSTS} posts scraped successfully")
+                set_cache(full_url, data, timeout=CACHE_TIMEOUT)
+                return save_data_and_return(data, profile_name)
 
         driver.execute_script("window.scrollBy(0, 200);")
         sleep(5)
         scrap_data()
 
-    def retry_scraping(exception_type):
-        if "driver" in locals():
-            driver.quit()
-        return retry_exception(
-            scrape_profile_tweets, profile_name, retry_count, exception_type
-        )
-
-    print_current_thread()
-    driver_initializer = InitializeDriver()
-    driver = (
-        driver_initializer.initialize_paid_proxy()
-        if settings.PAIDPROXY
-        else driver_initializer.initialize_free_proxy()
-    )
-    print("Web Driver initialized successfully...")
-
-    data = []
-    success = twitter_login_auth(driver)
+    success, message = twitter_login_auth(driver)
     if not success:
         return message_json_response(
             status.HTTP_400_BAD_REQUEST, "error", "Twitter Authentication Error"
         )
-
     try:
         search_box = driver.find_element(
             By.XPATH, "//input[@data-testid='SearchBox_Search_Input']"
         )
-        search_box.send_keys(profile_name)
+        print("search_box element is found")
+        action = ActionChains(driver)
+        action.move_to_element(search_box).click().perform()
+        for char in profile_name:
+            action.send_keys(char).perform()
+            sleep(0.1)  # Adjust delay as needed
         search_box.send_keys(Keys.ENTER)
-        print("click on search !!!!!!!!!!!!!!!!!!!")
+        print(f"enter the search with value {profile_name}")
         random_sleep()
         people = driver.find_element(
             By.XPATH,
-            "//*[@id='react-root']/div/div/div[2]/main/div/div/div/div[1]/div/div[1]/div[1]/div[2]/nav/div/div[2]/div/div[3]/a/div/div/span",
+            "//*[@id='react-root']/div/div/div[2]/main/div/div/div/div[1]/div/div[1]/div[1]/div[2]/nav/div/div["
+            "2]/div/div[3]/a/div/div/span",
         )
+        print("people element is found")
         people.click()
         print("click on people !!!!!!!!!!!!!!!!!!")
         random_sleep()
         WebDriverWait(driver, 60).until(
-            EC.presence_of_element_located(
+            ec.presence_of_element_located(
                 (
                     By.XPATH,
-                    "//*[@id='react-root']/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/section/div/div/div[1]/div/div/button/div/div[2]/div[1]/div[1]/div/div[1]/a/div/div[1]/span/span[1]",
+                    "//*[@id='react-root']/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/section/div/div/div["
+                    "1]/div/div/button/div/div[2]/div[1]/div[1]/div/div[1]/a/div/div[1]/span/span[1]",
                 )
             )
         )
         profile = driver.find_element(
             By.XPATH,
-            "//*[@id='react-root']/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/section/div/div/div[1]/div/div/button/div/div[2]/div[1]/div[1]/div/div[1]/a/div/div[1]/span/span[1]",
+            "//*[@id='react-root']/div/div/div[2]/main/div/div/div/div[1]/div/div[3]/section/div/div/div["
+            "1]/div/div/button/div/div[2]/div[1]/div[1]/div/div[1]/a/div/div[1]/span/span[1]",
         )
+        print("profile element is found")
         profile.click()
         print("click on people profile !!!!!!!!!!!!!!!!!!")
         random_sleep()
         scrap_data()
         sleep(2)
         driver.quit()
-        return save_data_and_return(data)
+        return save_data_and_return(data, profile_name)
+
     except NoSuchElementException as e:
-        return retry_scraping(type(e).__name__)
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrape_profile_tweets, profile_name, retry_count, type(e).__name__
+        )
     except StaleElementReferenceException as ex:
-        return retry_scraping(type(ex).__name__)
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrape_profile_tweets, profile_name, retry_count, type(ex).__name__
+        )
 
 
-@api_view(["get"])
+@api_view(["GET"])
 def get_tweeted_via_profile_name(request):
     """
-    Handles POST requests to retrieve tweets from a specified Twitter profile.
+    API endpoint to scrape tweets from a specified Twitter profile.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the profile name in the request data.
+        request (HttpRequest): The HTTP request object.
+
+    Query Parameters:
+        Profile_name (str): Twitter profile name to scrape.
 
     Returns:
-        JsonResponse: A JSON response with the status, message, and scraped tweet data if successful.
-                      If the request data is invalid, returns an error response with the validation errors.
-
-    Raises:
-        None
+        Response: JSON response with scraped data or error message.
     """
     profile_name = request.query_params.get("Profile_name")
+    full_url = request.build_absolute_uri()
+    if not profile_name:
+        return message_json_response(
+            status.HTTP_400_BAD_REQUEST, "error", "Profile_name is required"
+        )
+    # cached_response = cache.get(profile_name)
+    cached_response = get_cache(full_url)
+    if cached_response:
+        return save_data_and_return(cached_response, profile_name)
     with ThreadPoolExecutor(max_workers=MAX_THREAD_COUNT) as executor:
-        future = executor.submit(scrape_profile_tweets, profile_name, 0)
+        future = executor.submit(scrape_profile_tweets, profile_name, 0, full_url)
         result = future.result()
     return result
 
 
-def scrape_hashtag_tweets(hashtags, retry_count):
+def scrape_hashtag_tweets(hashtags, retry_count, full_url):
     """
-    Scrapes tweets containing specified hashtags.
+    Scrapes tweets for specified hashtags using Selenium WebDriver.
 
     Args:
-        hashtags (str): The hashtag(s) to scrape tweets for.
-        retry_count (int): The number of retries in case of errors during scraping.
+        hashtags (str): The hashtag(s) to search for.
+        retry_count (int): The number of retries attempted if an error occurs.
+        full_url (str): The full URL used for caching purposes.
 
     Returns:
-        dict: A JSON response containing the status, message, and scraped tweet data if successful.
-        str: Error message if the scraping fails.
-
-    Raises:
-        NoSuchElementException: If an element is not found on the page.
-        StaleElementReferenceException: If an element is no longer attached to the DOM.
+        JSON response: Contains the scraped data or an error message.
     """
-
-    def tweet_content_exists(tweets, tweet_content):
-        return any(tweet.get("TweetContent") == tweet_content for tweet in tweets)
-
-    def save_data_and_return(data):
-        save_data_in_directory(
-            f"Json_Response/{timezone.now().date()}/", hashtags, data
-        )
-        return message_json_response(
-            status.HTTP_200_OK, "success", "Tweets retrieved successfully", data=data
-        )
+    print_current_thread()
+    print("web driver initializing")
+    driver = (
+        driver_initializer.initialize_paid_proxy()
+        if settings.PAIDPROXY
+        else driver_initializer.initialize_free_proxy()
+    )
+    data = []
 
     def scrap_data():
         nonlocal data
@@ -296,113 +305,101 @@ def scrape_hashtag_tweets(hashtags, retry_count):
                 print("posts scrap : ", len(data))
 
         if len(data) >= NUMBER_OF_POSTS:
-            return save_data_and_return(data)
-
+            set_cache(full_url, data, timeout=CACHE_TIMEOUT)
+            return save_data_and_return(data, hashtags)
         driver.execute_script("window.scrollBy(0, 200);")
         sleep(5)
         scrap_data()
 
-    def retry_scraping(exception_type):
-        if "driver" in locals():
-            driver.quit()
-        return retry_exception(
-            scrape_hashtag_tweets, hashtags, retry_count, exception_type
-        )
-
-    print_current_thread()
-    driver_initializer = InitializeDriver()
-    driver = (
-        driver_initializer.initialize_paid_proxy()
-        if settings.PAIDPROXY
-        else driver_initializer.initialize_free_proxy()
-    )
-    print("Driver initialized successfully...")
-
-    data = []
-    success = twitter_login_auth(driver)
-    print("Login successful...")
+    success, message = twitter_login_auth(driver)
     if not success:
         return message_json_response(
             status.HTTP_400_BAD_REQUEST, "error", "Twitter Authentication Error"
         )
-
     try:
-        random_sleep()
         search_box = driver.find_element(
             By.XPATH, "//input[@data-testid='SearchBox_Search_Input']"
         )
-        search_box.send_keys(hashtags)
+        print("search_box element is found")
+        action = ActionChains(driver)
+        action.move_to_element(search_box).click().perform()
+        for char in hashtags:
+            action.send_keys(char).perform()
+            sleep(0.1)  # Adjust delay as needed
         search_box.send_keys(Keys.ENTER)
-        print("Click on search box...")
+        print(f"enter the search with value {hashtags}")
         random_sleep()
         scrap_data()
-        sleep(2)
-        driver.quit()
-        return save_data_and_return(data)
-    except StaleElementReferenceException as ex:
-        return retry_scraping(type(ex).__name__)
     except NoSuchElementException as e:
-        return retry_scraping(type(e).__name__)
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrape_hashtag_tweets, hashtags, retry_count, type(e).__name__
+        )
+    except StaleElementReferenceException as ex:
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrape_hashtag_tweets, hashtags, retry_count, type(ex).__name__
+        )
+    if "driver" in locals():
+        driver.quit()
+    return save_data_and_return(data, hashtags)
 
 
-@api_view(["get"])
+@api_view(["GET"])
 def fetch_tweets_by_hash_tag(request):
     """
-    Handles POST requests to fetch tweets based on specified hashtags.
+    API endpoint to scrape tweets based on specified hashtags.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the hashtags in the request data.
+        request (HttpRequest): The HTTP request object.
+
+    Query Parameters:
+        hashtags (str): The hashtags to search for.
 
     Returns:
-        JsonResponse: A JSON response with the status, message, and scraped tweet data if successful.
-                      If the request data is invalid, returns an error response with the validation errors.
-
-    Raises:
-        None
+        Response: JSON response with scraped data or error message.
     """
-    retry_count = 0
     hashtags = request.query_params.get("hashtags")
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future = executor.submit(scrape_hashtag_tweets, hashtags, retry_count)
+    full_url = request.build_absolute_uri()
+    if not hashtags:
+        return message_json_response(
+            status.HTTP_400_BAD_REQUEST, "success", "hashtags is required"
+        )
+    # cached_response = cache.get(hashtags)
+    cached_response = get_cache(full_url)
+    if cached_response:
+        return save_data_and_return(cached_response, hashtags)
+    with ThreadPoolExecutor(max_workers=MAX_THREAD_COUNT) as executor:
+        future = executor.submit(scrape_hashtag_tweets, hashtags, 0, full_url)
         result = future.result()
     return result
 
 
-def scrape_trending_hashtags(request, retry_count=0):
+def scrape_trending_hashtags(trending, retry_count=0, full_url=None):
     """
-    Scrape trending hashtags from Twitter.
-
-    This function scrapes trending hashtags from Twitter's explore section. It scrolls through the page
-    to load all trending topics and extracts relevant information such as ID, category, type, trending topic,
-    and number of posts.
+    Scrapes the trending hashtags from Twitter's explore page using Selenium WebDriver.
 
     Args:
-    - request (HttpRequest): The HTTP request object.
-    - retry_count (int): The number of times the function has retried scraping.
+        trending (str): Identifier for caching the trending topics.
+        retry_count (int, optional): Number of retries attempted if an error occurs. Defaults to 0.
+        full_url (str, optional): The full URL used for caching purposes. Defaults to None.
 
     Returns:
-    - Tuple[bool, list]: A tuple containing a boolean indicating success (True) or failure (False),
-                         and a list of dictionaries representing trending topics.
-                         Each dictionary contains the following keys:
-                         - "id": ID of the trending topic.
-                         - "category": Category of the trending topic.
-                         - "type": Type of the trending topic.
-                         - "trending": The trending topic itself.
-                         - "posts": Number of posts related to the trending topic.
+        tuple: A tuple containing a success flag (bool) and the JSON response (list of trending topics) or error message.
     """
     print_current_thread()
-    driver_initializer = InitializeDriver()
+    print("web driver initializing")
     driver = (
         driver_initializer.initialize_paid_proxy()
         if settings.PAIDPROXY
         else driver_initializer.initialize_free_proxy()
     )
-    print("initialize driver successful !!!!!!!!!!!!!!!!")
-    twitter_login_auth(driver)
-    print("login successful !!!!!!!!!!!!!!!!")
+    success, message = twitter_login_auth(driver)
+    if not success:
+        return success, message
     try:
-        random_sleep()
-
         explore_btn = driver.find_element(
             By.XPATH,
             "/html/body/div[1]/div/div/div[2]/header/div/div/div/div[1]/div[2]/nav/a[2]/div/div[2]/span",
@@ -413,7 +410,8 @@ def scrape_trending_hashtags(request, retry_count=0):
         random_sleep()
         trending_btn = driver.find_element(
             By.XPATH,
-            "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[1]/div[1]/div[2]/nav/div/div[2]/div/div[2]/a/div/div/span",
+            "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[1]/div[1]/div[2]/nav/div/div["
+            "2]/div/div[2]/a/div/div/span",
         )
         print("trending element is found")
         trending_btn.click()
@@ -451,99 +449,86 @@ def scrape_trending_hashtags(request, retry_count=0):
                     "posts": text[4].strip() if len(text) > 4 else "N/A",
                 }
                 trending_topics.append(item)
-
+        json_response = trending_topics
+        # cache.set(trending, json_response, timeout=60 * 15)
+        set_cache(full_url, json_response, timeout=CACHE_TIMEOUT)
     except NoSuchElementException as e:
         if "driver" in locals():
             driver.quit()
         return retry_exception(
-            scrape_trending_hashtags, request, retry_count, type(e).__name__
+            scrape_trending_hashtags, trending, retry_count, type(e).__name__
         )
     except StaleElementReferenceException as ex:
         if "driver" in locals():
             driver.quit()
         return retry_exception(
-            scrape_trending_hashtags, request, retry_count, type(ex).__name__
+            scrape_trending_hashtags, trending, retry_count, type(ex).__name__
         )
-
     if "driver" in locals():
         driver.quit()
-    return True, trending_topics
+    return True, json_response
 
 
-@api_view(["get"])
+@api_view(["GET"])
 def get_trending_tweets(request):
     """
-    Function to get trending tweets by scraping Twitter for trending hashtags.
+    API endpoint to fetch the current trending tweets from Twitter.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the request data.
+        request (HttpRequest): The HTTP request object.
 
     Returns:
-        JSONResponse: A JSON response containing the scraped trending tweets data or an error message.
+        Response: JSON response with trending data or an error message.
     """
-
+    trending = "trending"
+    # cached_response = cache.get(trending)
+    full_url = request.build_absolute_uri()
+    cached_response = get_cache(full_url)
+    if cached_response:
+        return save_data_and_return(cached_response, trending)
     with ThreadPoolExecutor(max_workers=5) as executor:
-        future = executor.submit(scrape_trending_hashtags, request)
-        # result = future.result()
+        future = executor.submit(scrape_trending_hashtags, trending, 0, full_url)
         success, result = future.result()
     if not success:
         return message_json_response(status.HTTP_400_BAD_REQUEST, "error", result)
-    print("done scrapping !!!!!!!!!!!!!!!!!!!!!!!!!!")
-    save_data_in_directory(
-        f"Json_Response/{timezone.now().date()}/", "Trending", result
-    )
-    return message_json_response(
-        status.HTTP_200_OK, "success", "Tweets retrieved successfully", data=result
-    )
+    return save_data_and_return(result, trending)
 
 
-def scrape_tweets_by_id(request, retry_count=0):
+def scrape_tweets_by_id(request, retry_count=0, full_url=None):
     """
-    Endpoint to scrape tweets from Twitter based on provided post URLs.
+    Scrapes tweets from Twitter based on user name and tweet IDs using Selenium WebDriver.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the data to be scraped.
-        retry_count (int): Number of times to retry scraping in case of an exception.
+        request (HttpRequest): The HTTP request object containing query parameters.
+        retry_count (int, optional): Number of retries attempted if an error occurs. Defaults to 0.
+        full_url (str, optional): The full URL used for caching purposes. Defaults to None.
 
     Returns:
-        JSONResponse: A JSON response containing the scraped tweet data or error message.
+        tuple: A tuple containing a success flag (bool) and the scraped data (list of tweets) or error message.
     """
     print_current_thread()
-    driver_initializer = InitializeDriver()
+    print("web driver initializing")
     driver = (
         driver_initializer.initialize_paid_proxy()
         if settings.PAIDPROXY
         else driver_initializer.initialize_free_proxy()
     )
-    print("initialize driver successfully !!!!!!!!!!!!!!!!")
-
-    post_ids_str = request.query_params.get("post_ids")
-    print("post_ids_str", post_ids_str)
-    user_name = request.query_params.get("user_name")
-
-    if post_ids_str:
+    success, message = twitter_login_auth(driver)
+    if not success:
+        return success, message
+    try:
+        data = []
+        user_name = request.query_params.get("user_name")
+        post_ids_str = request.query_params.get("post_ids")
+        print("post_ids_str", post_ids_str)
         post_ids = post_ids_str.split(",")
-        # Strip any whitespace from the IDs
         post_ids = [post_id.strip() for post_id in post_ids]
-    else:
-        return Response(
-            {"error": "post_ids parameter is required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    success = twitter_login_auth(driver)
-    if success:
-        print("login successfully !!!!!!!!!!!!!!!!")
-        random_sleep()
-
-    data = []
-
-    for post_id in post_ids:
-
-        twitter_url = f"https://x.com/{user_name}/status/{post_id}"
-        try:
+        for post_id in post_ids:
+            twitter_url = f"https://x.com/{user_name}/status/{post_id}"
+            print("twitter url ", twitter_url)
             driver.get(twitter_url)
+            print("getting the data")
             random_sleep()
-
             tweet = driver.find_element(
                 By.XPATH, "//div[@data-testid='tweetText']"
             ).text
@@ -582,7 +567,6 @@ def scrape_tweets_by_id(request, retry_count=0):
                 )
                 .text
             )
-
             driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
 
             timestamp = driver.find_element(By.XPATH, "//time").get_attribute(
@@ -604,136 +588,118 @@ def scrape_tweets_by_id(request, retry_count=0):
                 }
             )
             print("scrapping !!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        except NoSuchElementException as e:
-            if "driver" in locals():
-                driver.quit()
-            return retry_exception(
-                scrape_tweets_by_id, request, retry_count, type(e).__name__
-            )
-        except StaleElementReferenceException as ex:
-            if "driver" in locals():
-                driver.quit()
-            return retry_exception(
-                scrape_tweets_by_id, request, retry_count, type(ex).__name__
-            )
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            continue
-        print("done scrapping !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
+        # cache.set(f"get_by_id {user_name}", data, timeout=60 * 15)
+        set_cache(full_url, data, timeout=CACHE_TIMEOUT)
+    except NoSuchElementException as e:
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrape_tweets_by_id, request, retry_count, type(e).__name__
+        )
+    except StaleElementReferenceException as ex:
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrape_tweets_by_id, request, retry_count, type(ex).__name__
+        )
     if "driver" in locals():
         driver.quit()
-
-    save_data_in_directory(
-        f"Json_Response/{timezone.now().date()}/",
-        user_name,
-        data,
-    )
-
-    return JsonResponse(
-        {
-            "status": status.HTTP_200_OK,
-            "message": "Tweets retrieved successfully",
-            "data": data,
-        }
-    )
+    return True, data
 
 
-@api_view(["get"])
+@api_view(["GET"])
 def get_tweets_by_id(request):
     """
-    Endpoint to asynchronously scrape tweets from Twitter based on provided post URLs.
+    API endpoint to fetch tweets by user name and tweet IDs.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the data to be scraped.
+        request (HttpRequest): The HTTP request object containing query parameters.
 
     Returns:
-        JSONResponse: A JSON response containing the scraped tweet data or error message.
+        Response: JSON response with tweet data or an error message.
     """
+    user_name = request.query_params.get("user_name")
+    full_url = request.build_absolute_uri()
+    post_ids_str = request.query_params.get("post_ids")
+    if not (user_name and post_ids_str):
+        return message_json_response(
+            status.HTTP_400_BAD_REQUEST,
+            "error",
+            "Both user_name and post_ids are required.",
+        )
+    # cached_response = cache.get(f"get_by_id {user_name}")
+    cached_response = get_cache(full_url)
+    if cached_response:
+        return save_data_and_return(cached_response, user_name)
     with ThreadPoolExecutor(max_workers=5) as executor:
-        retry_count = 0
-        future = executor.submit(scrape_tweets_by_id, request, retry_count)
-        result = future.result()
+        future = executor.submit(scrape_tweets_by_id, request, 0, full_url)
+        success, result = future.result()
+    if not success:
+        return message_json_response(status.HTTP_400_BAD_REQUEST, "error", result)
+    return save_data_and_return(result, user_name)
 
-    return result
 
-
-def get_comments_for_tweet(request, retry_count=0):
+def scrap_get_comments_for_tweet(request, retry_count=0, full_url=None):
     """
-    Retrieves comments for tweets identified by their post IDs.
-
-    This function takes an HTTP request object containing data, validates it using a TweetUrlSerializer, and then initializes a WebDriver using the initialize_driver function. It then extracts the post IDs from the request data and attempts to log in to Twitter using the twitter_login_auth function.
-
-    If the login is successful, the function iterates through each post ID, visits the corresponding tweet URL, clicks on the image element (assuming 'tweetPhoto' is the data-testid value for the image), and then collects the text content of elements matching a specific test_id (which is not defined in the provided code).
-
-    The function scrolls through the page to load more content dynamically and collects all unique text content found.
-
-    Once all comments are collected, they are returned as a JSON response with a success status code (HTTP 200 OK).
+    Scrapes comments for a given tweet by user name and post IDs.
 
     Args:
-        request: An HTTP request object containing data.
+        request (HttpRequest): The HTTP request object containing query parameters.
+        retry_count (int, optional): The number of retry attempts. Defaults to 0.
+        full_url (str, optional): The full URL for caching. Defaults to None.
 
     Returns:
-        A JSON respons data = []e containing comments for the specified tweets.
-
-    Raises:
-        NoSuchElementException: If the reply element is not found.
+        tuple: A tuple containing a success flag and the JSON response with comments or an error message.
     """
-    driver_initializer = InitializeDriver()
+    print_current_thread()
+    print("web driver initializing")
     driver = (
         driver_initializer.initialize_paid_proxy()
         if settings.PAIDPROXY
         else driver_initializer.initialize_free_proxy()
     )
-    print("initilize driver !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    post_ids_str = request.query_params.get("post_ids")
-    print("post_ids_str", post_ids_str)
-    user_name = request.query_params.get("user_name")
+    success, message = twitter_login_auth(driver)
+    if not success:
+        return success, message
 
-    if post_ids_str:
+    json_response = {
+        "comments": []
+    }  # Initialize json_response with a default empty list
+
+    try:
+        data = []
+        user_name = request.query_params.get("user_name")
+        post_ids_str = request.query_params.get("post_ids")
+        print("post_ids_str", post_ids_str)
         post_ids = post_ids_str.split(",")
         post_ids = [post_id.strip() for post_id in post_ids]
-    else:
-        return Response(
-            {"error": "post_ids parameter is required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    success = twitter_login_auth(driver)
-    if success:
-        print("login successfully !!!!!!!!!!!!!!!!")
-        random_sleep()
-        data = []
 
         for post_id in post_ids:
-            twiiter_url = f"https://x.com/{user_name}/status/{post_id}"
-            driver.get(twiiter_url)
-            sleep(5)
-            try:
-                WebDriverWait(driver, 15).until(
-                    EC.presence_of_element_located((By.XPATH, "//*[@role='article']"))
-                )
+            twitter_url = f"https://x.com/{user_name}/status/{post_id}"
+            print("twitter url ", twitter_url)
+            driver.get(twitter_url)
+            print("getting the data")
+            random_sleep()
 
-                while len(data) < 5:
-                    driver.execute_script("window.scrollBy(0, 200);")
-                    sleep(5)
+            WebDriverWait(driver, 15).until(
+                ec.presence_of_element_located((By.XPATH, "//*[@role='article']"))
+            )
 
-                    elements = driver.find_elements(By.XPATH, "//*[@role='article']")
+            while len(data) < NUMBER_OF_POSTS:
+                driver.execute_script("window.scrollBy(0, 200);")
+                sleep(5)
 
-                    for element in elements:
-                        comment_text = element.text.strip()
-                        if comment_text and {"comment": comment_text} not in data:
-                            data.append({"comment": comment_text})
-            except NoSuchElementException as e:
-                if "driver" in locals():
-                    driver.quit()
-                return retry_exception(
-                    scrape_trending_hashtags, request, retry_count, type(e).__name__
-                )
+                elements = driver.find_elements(By.XPATH, "//*[@role='article']")
+
+                for element in elements:
+                    comment_text = element.text.strip()
+                    if comment_text and {"comment": comment_text} not in data:
+                        data.append({"comment": comment_text})
+
         if data:
             formatted_comments = []
             for item in data:
                 comment_text = item["comment"].split("\n")
-
                 try:
                     if len(comment_text) >= 8:
                         name = comment_text[0]
@@ -761,30 +727,90 @@ def get_comments_for_tweet(request, retry_count=0):
                     print(f"Error processing item: {item['comment']}. Error: {str(e)}")
 
             json_response = {"comments": formatted_comments}
-            save_data_in_directory(
-                f"Json_Response/{timezone.now().date()}/", "profile_name", data
-            )
-            return message_json_response(
-                status.HTTP_200_OK,
-                "success",
-                "comments get  successFully",
-                data=json_response,
-            )
+            set_cache(full_url, json_response, timeout=CACHE_TIMEOUT)
+
+    except NoSuchElementException as e:
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrap_get_comments_for_tweet, request, retry_count, type(e).__name__
+        )
+
+    except StaleElementReferenceException as ex:
+        if "driver" in locals():
+            driver.quit()
+        return retry_exception(
+            scrap_get_comments_for_tweet, request, retry_count, type(ex).__name__
+        )
+
+    finally:
+        if "driver" in locals():
+            driver.quit()
+
+    return True, json_response
 
 
-@api_view(["get"])
+@api_view(["GET"])
 def get_comments_for_tweets(request):
     """
-    Endpoint to asynchronously scrape comments for tweets from Twitter.
+    API endpoint to fetch comments for tweets by user name and post IDs.
 
     Args:
-        request (HttpRequest): The HTTP request object containing the tweet data.
+        request (HttpRequest): The HTTP request object containing query parameters.
 
     Returns:
-        JSONResponse: A JSON response containing the scraped comments data or error message.
+        Response: JSON response with comments for the specified tweets or an error message.
     """
-
+    user_name = request.query_params.get("user_name")
+    post_ids_str = request.query_params.get("post_ids")
+    full_url = request.build_absolute_uri()
+    if not (user_name and post_ids_str):
+        return message_json_response(
+            status.HTTP_400_BAD_REQUEST,
+            "error",
+            "Both user_name and post_ids are required.",
+        )
+    # cached_response = cache.get(data_)
+    cached_response = get_cache(full_url)
+    if cached_response:
+        return save_data_and_return(cached_response, user_name)
     with ThreadPoolExecutor(max_workers=5) as executor:
-        future = executor.submit(get_comments_for_tweet, request)
-        result = future.result()
-    return result
+        future = executor.submit(scrap_get_comments_for_tweet, request, 0, full_url)
+        success, result = future.result()
+    if not success:
+        return message_json_response(status.HTTP_400_BAD_REQUEST, "error", result)
+    return save_data_and_return(result, user_name)
+
+
+# Cloudflare configuration......
+@require_http_methods(["POST"])
+def create_instance(request):
+    instance_data = request.POST.get("instance_data")
+    response = requests.post(
+        f"{CLOUDFLARE_WORKER_URL}/create", json={"instance": instance_data}
+    )
+    return JsonResponse(response.json(), status=response.status_code)
+
+
+@require_http_methods(["GET"])
+def get_instance(request):
+    response = requests.get(f"{settings.CLOUDFLARE_WORKER_URL}/get")
+    return JsonResponse(response.json(), status=response.status_code)
+
+
+@require_http_methods(["POST"])
+def release_instance(request):
+    instance_data = request.POST.get("instance_data")
+    response = requests.post(
+        f"{CLOUDFLARE_WORKER_URL}/release", json={"instance": instance_data}
+    )
+    return JsonResponse(response.json(), status=response.status_code)
+
+
+@require_http_methods(["POST"])
+def close_instance(request):
+    instance_data = request.POST.get("instance_data")
+    response = requests.post(
+        f"{CLOUDFLARE_WORKER_URL}/close", json={"instance": instance_data}
+    )
+    return JsonResponse(response.json(), status=response.status_code)
