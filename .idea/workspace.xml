@@ -4,21 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e9d24e11-fab1-45f4-9599-f41717366c69" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="fd5255fe-a285-4bfe-a598-6fb077ec47a2" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/Twitter-Scrapping.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Twitter-Scrapping.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/#Godi media.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/#rahul.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/LinuxHandbook.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/Nitish Rajput.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/None.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/Rahul Gandhi.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/Trending.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Json_Response/2024-06-19/profile_name.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/social_media_scrapping/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/social_media_scrapping/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/twitter_scraper/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/twitter_scraper/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/twitter_scraper/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/views.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/twitter_scraper/web_driver.py" beforeDir="false" afterPath="$PROJECT_DIR$/twitter_scraper/web_driver.py" afterDir="false" />
@@ -31,7 +19,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="dev_komal" />
+        <entry key="$PROJECT_DIR$" value="master" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -65,8 +53,8 @@
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "devbheem",
-    "last_opened_file_path": "/home/rk/Desktop/Python Project/DRF/Twitter-Scrapping",
-    "settings.editor.selected.configurable": "com.intellij.pycharm.community.ide.impl.configuration.PythonContentEntriesConfigurable"
+    "last_opened_file_path": "/home/bheem/Desktop/Python Projects/Django/DRF API Projects/Scrapping/Twitter-Scrapping",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
   <component name="Push.Settings">
