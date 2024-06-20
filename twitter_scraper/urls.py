@@ -27,8 +27,8 @@ urlpatterns = [
         views.get_comments_for_tweets,
         name="get_comments_for_tweets",
     ),
-    path('create_instance/', views.create_instance, name='create_instance'),
-    path('get_instance/', views.get_instance, name='get_instance'),
-    path('release_instance/', views.release_instance, name='release_instance'),
-    path('close_instance/', views.close_instance, name='close_instance'),
+    path("create_instance/", views.create_instance, name="create_instance"),
+    path("get_instance/", views.get_instance, name="get_instance"),
+    path("release_instance/", views.release_instance, name="release_instance"),
+    path("close_instance/", views.close_instance, name="close_instance"),
 ]

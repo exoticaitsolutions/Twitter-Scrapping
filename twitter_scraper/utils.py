@@ -2,6 +2,8 @@ import json
 import os
 import random
 from time import sleep
+from django.utils import timezone
+from rest_framework import status
 from typing import Optional, Dict
 import undetected_chromedriver as uc
 from django.core.cache import cache
@@ -61,12 +63,18 @@ def get_mailinator_code(email):
 
 
 USER_CREDENTIALS = [
-    # {
-    #     "full name": "MosleySeri72159",
-    #     "username": "MosleySeri72159",
-    #     "email": "xohik@mailinator.com",
-    #     "password": "asdf123@",
-    # },
+    {
+        "full name": "Sunny",
+        "username": "Sunny634164",
+        "email": "sunnyexoticait@gmail.com",
+        "password": "Sunny@123",
+    },
+    {
+        "full name": "MosleySeri72159",
+        "username": "MosleySeri72159",
+        "email": "xohik@mailinator.com",
+        "password": "asdf123@",
+    },
     {
         "full name": "Melvin Barber",
         "username": "MelvinBarb10693",
@@ -256,7 +264,7 @@ def twitter_login_auth(driver):
 
 
 def message_json_response(
-        code: int, error_type: str, error_message: str, data: Optional[Dict] = None
+    code: int, error_type: str, error_message: str, data: Optional[Dict] = None
 ) -> JsonResponse:
     """
     Create a JSON response with the provided code, error type, error message, and optional data.
@@ -314,7 +322,15 @@ def set_cache(key, value, timeout=None):
     :param key: Cache key
     :param value: Value to cache    :param timeout:  timeout in seconds. Defaults to the default timeout if None.
     """
-    print("Setting the key = ", key, " and value = ", value, " for timeout = ", timeout, " in Redis cache.")
+    print(
+        "Setting the key = ",
+        key,
+        " and value = ",
+        value,
+        " for timeout = ",
+        timeout,
+        " in Redis cache.",
+    )
     cache.set(key, value, timeout)
 
 
@@ -326,3 +342,10 @@ def get_cache(key, default=None):
     :return: Cached value or default if the key does not exist
     """
     return cache.get(key, default)
+
+
+def save_data_and_return(data, data_append):
+    save_data_in_directory(f"json_Response/{timezone.now().date()}/", data_append, data)
+    return message_json_response(
+        status.HTTP_200_OK, "success", "Tweets retrieved successfully", data=data
+    )
